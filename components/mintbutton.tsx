@@ -15,7 +15,7 @@ interface GuardList extends GuardReturn {
   buttonLabel: string;
 }
 
-const mintClick = useCallback(async (
+const mintClick = async (
   guard: GuardReturn,
   candyMachine: CandyMachine<DefaultCandyGuardSettings>,
   metaplex: Metaplex
