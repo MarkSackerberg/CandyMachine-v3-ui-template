@@ -78,7 +78,7 @@ const mintClick = async (
       },
     }, */
   });
-}, []);
+};
 
 type Props = {
   guardList: GuardReturn[];
