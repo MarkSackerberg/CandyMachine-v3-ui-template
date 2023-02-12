@@ -9,11 +9,15 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@metaplex-foundation/js": "^0.17.12",
+    "@nextui-org/react": "^1.0.0-beta.12",
+    "@solana/spl-token": "^0.3.7",
     "@solana/wallet-adapter-base": "^0.9.5",
     "@solana/wallet-adapter-react": "^0.15.5",
     "@solana/wallet-adapter-react-ui": "^0.9.7",
     "@solana/wallet-adapter-wallets": "^0.16.1",
     "@solana/web3.js": "^1.43.2",
+    "merkletreejs": "^0.3.9",
     "next": "12.1.6",
     "react": "^18.1.0",
     "react-dom": "18.1.0"
