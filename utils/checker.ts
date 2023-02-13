@@ -229,15 +229,12 @@ export const guardChecker = async (
 
     //generate and print merkleRoot in case the guardlabel is present in allowlist.tsx but not assigned
     if (
-      metaplex.identity().publicKey === candyMachine.authorityAddress &&
-      !singleGuard.allowList
+      metaplex.identity().publicKey.toBase58() === candyMachine.authorityAddress.toBase58()
     ) {
       const allowlist = allowLists.get(eachGuard.label);
-      console.log(allowlist);
       if (allowlist) {
-        console.log("add this merkleRoot to your candy guard config!");
         //@ts-ignore
-        console.log(getMerkleRoot(allowlist).toString("hex"));
+        console.log(`add this merkleRoot to your candy guard config! ${getMerkleRoot(allowlist).toString("hex")}`);
       }
     }
 

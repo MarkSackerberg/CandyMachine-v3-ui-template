@@ -134,6 +134,7 @@ const Home: NextPage = () => {
               guardList={guards}
               candyMachine={candyMachine}
               metaplex={metaplex}
+              ownedNfts={ownedNfts}
             />
           )}
           <Card.Footer>
