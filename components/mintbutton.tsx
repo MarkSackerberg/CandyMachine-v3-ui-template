@@ -3,7 +3,9 @@ import {
   DefaultCandyGuardSettings,
   Metaplex,
   getMerkleProof,
-  PublicKey,
+  FindNftsByOwnerOutput,
+  DefaultCandyGuardMintSettings,
+  CandyGuardsSettings,
 } from "@metaplex-foundation/js";
 import { Button, Card, Text, Row } from "@nextui-org/react";
 import { GuardReturn } from "../utils/checker";
@@ -15,81 +17,111 @@ interface GuardList extends GuardReturn {
   buttonLabel: string;
 }
 
-const mintClick = async (
+const chooseGuardToUse = (
   guard: GuardReturn,
-  candyMachine: CandyMachine<DefaultCandyGuardSettings>,
-  metaplex: Metaplex
+  candyMachine: CandyMachine<DefaultCandyGuardSettings>
 ) => {
-  let guardToUse: {
-    label: string;
-    guards: DefaultCandyGuardSettings;
-} | undefined = candyMachine.candyGuard?.groups.find(
+  let guardGroup = candyMachine.candyGuard?.groups.find(
     (item) => item.label === guard.label
   );
-
-  // not found, use default!
-  if (!guardToUse) {
-    if (!candyMachine.candyGuard) {
-      console.error("this should crash before. no guard defined.");
-      return;
-    }
-    guardToUse = {
-      label: "default",
-      guards: candyMachine.candyGuard.guards
-    }
+  if (guardGroup) {
+    return guardGroup;
   }
-  candyMachine = await metaplex.candyMachines().findByAddress({address: candyMachine.address})
 
+  if (candyMachine.candyGuard != null){
+    return {
+      label: "default",
+      guards: candyMachine.candyGuard.guards,
+    };
+  }
+
+  return {
+    label: "default",
+    guards: undefined
+  };
+}
+
+const callGuardRoutes = async (
+  metaplex: Metaplex,
+  candyMachine: CandyMachine<DefaultCandyGuardSettings>,
+  guardToUse: {
+    label: string;
+    guards: DefaultCandyGuardSettings;
+},
+) => {
   if (guardToUse.guards.allowList) {
-    const allowlist = allowLists.get(guard.label);
+    const allowlist = allowLists.get(guardToUse.label);
     if (!allowlist) {
       console.error("allowlist for this guard not defined in allowlist.tsx");
       return;
     }
     await metaplex.candyMachines().callGuardRoute({
       candyMachine,
-      guard: 'allowList',
+      guard: "allowList",
       group: guardToUse.label,
       settings: {
-        path: 'proof',
+        path: "proof",
         merkleProof: getMerkleProof(
           allowlist,
-          metaplex.identity().publicKey.toBuffer()
+          metaplex.identity().publicKey.toBase58()
         ),
       },
     });
   }
+}
+
+const mintClick = async (
+  guard: GuardReturn,
+  candyMachine: CandyMachine<DefaultCandyGuardSettings>,
+  metaplex: Metaplex,
+  ownedNfts: FindNftsByOwnerOutput | undefined
+) => {
+  candyMachine = await metaplex
+  .candyMachines()
+  .findByAddress({ address: candyMachine.address });
+
+  const guardToUse = chooseGuardToUse(guard, candyMachine);
+  if (!guardToUse.guards) {
+    console.error("no guard defined!")  
+    return
+  }
+
+  await callGuardRoutes(metaplex, candyMachine, guardToUse);
+
+  const gateNft = ownedNfts?.filter((obj) => {
+    return (
+      obj.collection?.address.toBase58() ===
+        guardToUse?.guards.nftGate?.requiredCollection.toBase58() &&
+      obj.collection?.verified === true
+    );
+  })[0];
+  let guardObject: Partial<DefaultCandyGuardMintSettings> = {};
+  if (gateNft) {
+    guardObject.nftGate = { mint: gateNft.address };
+  }
 
   // TODO: have the user choose which NFT to pay/burn?
-  console.log(candyMachine.candyGuard)
+
   const { nft } = await metaplex.candyMachines().mint({
     candyMachine: candyMachine,
     collectionUpdateAuthority: candyMachine.authorityAddress,
-    group: (guardToUse.label === "default") ? null : guardToUse.label ,
-/*     guards: {
-      nftBurn: {
-        mint: nftToBurn.address,
-      },
-      nftGate: {
-        mint: nftFromRequiredCollection.address,
-      },
-      nftPayment: {
-        mint: nftToPayWith.address,
-      },
-    }, */
+    group: guardToUse.label === "default" ? null : guardToUse.label,
+    guards: guardObject,
   });
 };
 
 type Props = {
   guardList: GuardReturn[];
-  candyMachine: CandyMachine<DefaultCandyGuardSettings> | undefined;
+  candyMachine: CandyMachine | undefined;
   metaplex: Metaplex;
+  ownedNfts: FindNftsByOwnerOutput | undefined;
 };
 
 export function ButtonList({
   guardList,
   candyMachine,
   metaplex,
+  ownedNfts,
 }: Props): JSX.Element {
   if (!candyMachine) {
     return <></>;
@@ -115,7 +147,6 @@ export function ButtonList({
     buttonGuardList.push(buttonElement);
   }
   //TODO: Placeholder for start + end time?
-  console.log(buttonGuardList.length)
   const listItems = buttonGuardList.map((buttonGuard) => (
     <>
       <Row>
@@ -125,7 +156,9 @@ export function ButtonList({
           color="gradient"
           auto
           key={buttonGuard.label}
-          onPress={() => mintClick(buttonGuard, candyMachine, metaplex)}
+          onPress={() =>
+            mintClick(buttonGuard, candyMachine, metaplex, ownedNfts)
+          }
           disabled={!buttonGuard.allowed}
           size="sm"
         >
